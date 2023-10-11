@@ -1,0 +1,109 @@
+# PEPATAC configuration file for an ATACseq pipeline based on pypiper
+
+# basic tools 
+# public tools
+tools:  # absolute paths to required tools
+  java: java
+  python: python
+  samtools: samtools
+  bedtools: bedtools
+  bowtie2: bowtie2
+  fastqc: fastqc
+  macs2: macs2
+  preseq: preseq
+  samblaster: samblaster
+  skewer: skewer
+  perl: perl
+  # ucsc tools
+  wigToBigWig: wigToBigWig
+  bigWigCat: bigWigCat
+  bedToBigBed: bedToBigBed
+  # optional tools
+  bwa: bwa
+  fseq: fseq
+  fseq2: fseq2
+  genrich: Genrich
+  hmmratac: ${HMMRATAC}
+  homer_findpeaks: findPeaks
+  homer_motif: findMotifsGenome.pl
+  trimmomatic: ${TRIMMOMATIC}
+  picard: ${PICARD}
+  pigz: pigz
+  Rscript: Rscript 
+  seqOutBias: seqOutBias
+  bigWigMerge: bigWigMerge
+  bedGraphToBigWig: bedGraphToBigWig
+
+# user configure 
+resources:
+  genome_config: ${REFGENIE}
+  adapters: null  # Set to null to use default adapter file included in repository
+
+parameters:  # parameters passed to bioinformatic tools, subclassed by tool
+# Adjust/Add/Remove parameters for individual tools here
+  bowtie2_pre: # Modify bowtie2 prealignment settings
+    params: ''
+    # pipeline default: -k 1 -D 20 -R 3 -N 1 -L 20 -i S,1,0.50
+    # -k 1: report up to <1> alns per read; MAPQ not meaningful
+    # -D 20: give up extending after <20> failed extends in a row
+    # -R 3: for reads w/ repetitive seeds, try <3> sets of seeds
+    # -N 1: max # mismatches in seed alignment; can be 0 or 1
+    # -L 20: length of seed substrings; must be >3, <32
+    # -i S,1,0.50: interval between seed substrings w/r/t read len
+  bwa_pre: # Modify bwa prealignment settings
+    params: ''
+    # pipeline default: -M -SP -r 3
+    # -M: Mark shorter split hits as secondary (for Picard compatibility)
+    # -SP: skip mate rescue (S); skip pairing (P)
+    # -r 3: Faster alignment speed but lower accuracy (bwa default = 1.5).
+  bowtie2: # Modify bowtie2 primary genome alignment settings
+    params: ''
+    # pipeline default: --very-sensitive -X 2000
+    # --very-sensitive: -D 20 -R 3 -N 0 -L 20 -i S,1,0.50
+    # -X 2000: paired-end maximum fragment length
+  bwa: # Modify bwa prealignment settings
+    params: ''
+    # pipeline default: -M
+    # -M: Mark shorter split hits as secondary (for Picard compatibility)
+  samtools:
+    params: '-q 10'
+    # -q: skip alignments with MAPQ < 10.
+  macs2:
+    params: '--shift -75 --extsize 150 --nomodel --call-summits --nolambda --keep-dup all -p 0.01'
+    # -f: Format of tag file.
+    # -q: The qvalue (minimum FDR) cutoff to call significant regions.
+    # --shift:  Assign an arbitrary shift in bp. See MACS documentation.
+    # --nomodel: Will bybass building the shifting model.
+  macs2_variable:
+    params: '-f BED -q 0.01 --shift 0 --nomodel'
+    # -f: Format of tag file.
+    # -q: The qvalue (minimum FDR) cutoff to call significant regions.
+    # --shift:  Assign an arbitrary shift in bp. See MACS documentation.
+    # --nomodel: Will bybass building the shifting model.
+  fseq:
+    params: '-of npf -l 600 -t 4.0 -s 1'
+    # -of: narrowPeak as output format.
+    # -l: feature length.
+    # -t: "threshold" (standard deviations).
+    # -s: wiggle track step.
+  fseq2:
+    params: '-f 0 -l 600 -t 4.0'
+    # -f: fragment size of treatment data
+    # -l: feature length.
+    # -t: "threshold" (standard deviations).
+  genrich:
+    params: ''
+    # -j: ATAC-seq mode on by default
+  hmmratac:
+    params: '--fragmem True --upper 10 --lower 5 --peaks True --window 500000'
+    # --blacklist: Pipeline includes blacklist by default if the refgenie asset exists.
+  homer_findpeaks:
+    params: '-minDist 150 -region'
+    # Use region mode with minimum distance of 150
+  homer_motif:
+    params: '-size given -mask'
+    # -mask: mask repeats
+    # -size given: use the exact regions provided to homer
+  java_settings:
+    params: '' 
+    # Can modify java settings in this manner. e.g. -Xms1g -Xmx7g. Default is no modifications.

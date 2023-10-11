@@ -1,0 +1,42 @@
+report_comment: >
+    ATAC-Seq pre-processing.
+data_format: 'yaml'
+
+run_modules:
+    - fastqc
+    - samtools
+    - preseq
+    - macs2
+
+module_order:
+    - fastqc:
+        name: 'LIB: FastQC (trimmed)'
+        info: 'This section of the report shows FastQC results after adapter trimming for individual libraries.'
+        path_filters:
+            - './fastqc/*_trim_fastqc.zip'
+    - fastqc:
+        name: 'LIB: FastQC (filtered)'
+        info: 'This section of the report shows FastQC results after mitochondrial alignment and filtering.'
+        path_filters:
+            - './fastqc_filtered/*.zip'
+    - samtools:
+        name: 'LIB: SAMTools'
+        info: 'This section of the report shows SAMTools results for individual libraries after filtering.'
+        path_filters:
+            - './alignment/filtered/*'
+    - samtools:
+        name: 'LIB: SAMTools'
+        info: 'This section of the report shows SAMTools results for individual libraries after removal of duplicates.'
+        path_filters:
+            - './alignment/dedup/*'
+    - preseq:
+        name: 'LIB: Preseq (unfiltered)'
+        anchor: 'preseq'
+        info: 'This section of the report shows Preseq results.'
+        path_filters:
+            - './preseq/*'
+    - macs2:
+        name: 'LIB: MACS2'
+        info: 'This section of the report shows MACS2 results for individual libraries.'
+        path_filters:
+            - './macs2/*'
