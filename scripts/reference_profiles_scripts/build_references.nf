@@ -21,6 +21,8 @@ if (params.help) {
     log.info '    --metadata_path       STRING   Metadata associated to the reference samples.'
     log.info '    --counts_path       STRING     Raw counts associated to each peak and sample.'
     log.info '    --cibersortx_token       STRING     CIBERSORTx token to be able to generate CIBERSORTx profiles.'
+    log.info '    --CIBERSORTx_singularity       STRING     CIBERSORTx singularity image to be able to run CIBERSORTx.'
+    log.info '    --CIBERSORTx_username       STRING     CIBERSORTx username associated to the CIBERSORTx token.'
     log.info '    --encode_count_file       STRING     Raw counts associated to each peak and ENCODE sample.'
     log.info '    --encode_metadata_file       STRING     Metadata associated to the ENCODE samples.'
     log.info '    --TCGA_path       STRING     Path to TCGA data for markers filtering.'
@@ -40,6 +42,8 @@ params.counts_path = null
 
 params.output_folder = "./"
 params.cibersortx_token = null
+params.CIBERSORTx_singularity = null
+params.CIBERSORTx_username = null
 params.cross_validation_files = "none"
 params.major_groups = "TRUE"
 params.encode_count_file = null
@@ -215,8 +219,8 @@ process save_CIBERSORT_profiles {
     '''
     token=$(cat !{params.cibersortx_token})
     mkdir cibersortx
-    singularity exec --no-home -c -B ./:/src/data -B cibersortx/:/src/outdir /work/FAC/FBM/LLB/dgfeller/scrnaseq/agabrie4/external_softwares/fractions_latest.sif /src/CIBERSORTxFractions --username aurelie.gabriel@unil.ch --token ${token} --refsample /src/data/cibersortx_input_ref.txt --phenoclasses /src/data/cibersortx_input_pheno.txt --outdir cibersortx
+    singularity exec --no-home -c -B ./:/src/data -B cibersortx/:/src/outdir !{params.CIBERSORTx_singularity} /src/CIBERSORTxFractions --username !{params.CIBERSORTx_username} --token ${token} --refsample /src/data/cibersortx_input_ref.txt --phenoclasses /src/data/cibersortx_input_pheno.txt --outdir cibersortx
     mkdir cibersortx_PBMC
-    singularity exec --no-home -c -B ./:/src/data -B cibersortx_PBMC/:/src/outdir /work/FAC/FBM/LLB/dgfeller/scrnaseq/agabrie4/external_softwares/fractions_latest.sif /src/CIBERSORTxFractions --username aurelie.gabriel@unil.ch --token ${token} --refsample /src/data/cibersortx_input_PBMCref.txt --phenoclasses /src/data/cibersortx_input_PBMCpheno.txt --outdir cibersortx_PBMC
+    singularity exec --no-home -c -B ./:/src/data -B cibersortx_PBMC/:/src/outdir !{params.CIBERSORTx_singularity} /src/CIBERSORTxFractions --username !{params.CIBERSORTx_username} --token ${token} --refsample /src/data/cibersortx_input_PBMCref.txt --phenoclasses /src/data/cibersortx_input_PBMCpheno.txt --outdir cibersortx_PBMC
     '''
 }
