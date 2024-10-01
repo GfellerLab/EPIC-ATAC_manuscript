@@ -3,10 +3,15 @@ README
 Aurélie Gabriel
 2023-10-11
 
-This readme describes how the code available in the scripts/ folder was
-used. In the following sections we will refer to a *data/* folder
-containing files that were too large to be hosted on the github
-repository. The complete data/ folder can be retrieved on zenodo
+This readme describes how the code (available in the scripts/ folder)
+was used to perform the analyses described in the following paper: A AG
+Gabriel, J Racle, M Falquet, C Jandus, D Gfeller. 2024. Robust
+estimation of cancer and immune cell-type proportions from bulk tumor
+ATAC-Seq data. DOI: <https://doi.org/10.7554/eLife.94833.3>
+
+In the following sections we will refer to a *data/* folder containing
+files that were too large to be hosted on the github repository. The
+complete data/ folder can be retrieved on zenodo
 (<https://zenodo.org/record/13132868>, additional_data.zip).
 
 ## Preprocessing of the bulk ATAC-Seq data

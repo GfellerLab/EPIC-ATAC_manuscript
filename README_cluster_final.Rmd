@@ -1,0 +1,222 @@
+---
+title: "README"
+author: "Aurélie Gabriel"
+date: "2023-10-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Preprocessing of the bulk ATAC-Seq data
+
+
+```{bash general_params, eval = FALSE, echo = TRUE}
+git_repo_path=/work/FAC/FBM/LLB/dgfeller/scrnaseq/agabrie4/EPIC_ATAC/
+output_folder=/work/FAC/FBM/LLB/dgfeller/scrnaseq/agabrie4/EPIC_ATAC/results/elife_revisions/
+```
+
+Supplementary table 1 lists the samples that have been downloaded and processed.
+Describe here how to obtain the genome folder data.
+```{bash preprocess_bulk_ATAC, eval = FALSE, echo = TRUE}
+project_path=/work/FAC/FBM/LLB/dgfeller/scrnaseq/agabrie4/EPIC_ATAC/
+genome_folder_path=${project_path}/data/raw/genome_folder/
+pepatac_output_folder=${project_path}results/bulk_training/results/
+samples_metadata=/scratch/agabrie4/ATAC_bulk_processing/SRA_samples_metadata_stimNeutrophils.txt
+
+# Preprocess the SRA human data
+nextflow run ${git_repo_path}scripts/bulk_preprocessing_scripts/ATAC_processing.nf \
+-c ${git_repo_path}scripts/bulk_preprocessing_scripts/nextflow.config -profile singularity \
+--samples_metadata ${samples_metadata} \
+--sra_folder /scratch/agabrie4/sra_folder/ \
+--output_folder /scratch/agabrie4/ATAC_bulk_processing/results/ \
+--genome_version hg38 \
+--genome_folder ${genome_folder_path} \
+--multiqc_config ${git_repo_path}scripts/bulk_preprocessing_scripts/multiqc_config.yaml \
+--blacklist_file ${git_repo_path}scripts/bulk_preprocessing_scripts/hg38-blacklist.v2.bed \
+--original_config ${git_repo_path}scripts/bulk_preprocessing_scripts/pepatac_original.yaml \
+--samples_origin SRA --adapters ${git_repo_path}scripts/bulk_preprocessing_scripts/all_adapters_PE.fa \
+--preprocess true --getcounts false -bg -resume
+
+```
+
+The same pipeline was used to process the ENCODE samples listed in data/encode/SRA_ENCODE_samples.txt
+
+## Definition of the set of consensus peaks and counts extraction
+
+The same pipeline can then be used to extract the raw counts for all the samples processed with the following options `--preprocess false` and `--getcounts true`.
+
+```{bash extract_counts, eval = FALSE, echo = TRUE}
+
+project_path=/work/FAC/FBM/LLB/dgfeller/scrnaseq/agabrie4/EPIC_ATAC/
+genome_folder_path=${project_path}/data/raw/genome_folder/
+pepatac_output_folder=${project_path}results/bulk_training/results/
+
+raw_counts_output_folder=${output_folder}/reference_profiles/counts/
+
+mkdir -p ${raw_counts_output_folder}
+cd ${raw_counts_output_folder}
+
+nextflow run ${git_repo_path}scripts/bulk_preprocessing_scripts/ATAC_processing.nf \
+-c ${git_repo_path}scripts/bulk_preprocessing_scripts/nextflow.config -profile singularity \
+--samples_metadata ${path_to_data_folder}/samples/Ref/SRA_samples_metadata.txt \
+--output_folder ${pepatac_output_folder} \
+--genome_version hg38 --peak_score_thr 2 \
+--genome_folder ${genome_folder_path} \
+--output_folder_counts ${raw_counts_output_folder} \
+--pepatac_config ${git_repo_path}scripts/bulk_preprocessing_scripts/pepatac_config.yaml \
+--preprocess false --getcounts true -bg -resume
+
+```
+
+
+We then extracted the raw counts from the ENCODE data for the peaks identified from the 564 samples.
+```{bash extract_counts_ENCODE, eval = FALSE, echo = TRUE}
+raw_counts_output_folder=${output_folder}/reference_profiles/counts/
+
+mkdir ${raw_counts_output_folder}ENCODE
+cd ${raw_counts_output_folder}ENCODE
+
+nextflow run ${git_repo_path}scripts/bulk_preprocessing_scripts/extract_peaks_counts.nf \
+-c ${git_repo_path}scripts/bulk_preprocessing_scripts/nextflow.config \
+-profile singularity \
+--bam_folder ${project_path}results/bulk_training/bam_files_ENTEX/ \
+--output_folder_counts ${raw_counts_output_folder}ENCODE/ \
+--saf_file ${raw_counts_output_folder}all_consensusPeaks.saf -bg -resume
+```
+
+
+## Computing reference profiles and identifying marker peaks
+Markers are identified in 10 subsets of the reference samples (list of samples in each subset located in *data/markers_identification_input_files/samples/Ref/*)
+and a consensus of these markers are retrieved. 
+The following command line will generate reference profiles and identify cell-type specific marker peaks for EPIC-ATAC.
+It will also use CIBERSORTx to build reference profiles. To do so a singularity image can be retrieved on CIBERSORTx website by requesting a token access
+on the CIBERSORTx website. The singularity image, the token and the associated username must be provided in the workflow parameters (`CIBERSORTx_singularity`, `cibersortx_token`, `CIBERSORTx_username`). 
+
+```{bash build_profiles, eval = FALSE, echo = TRUE}
+# Without considering Tcell subtypes  
+git_repo_path=/work/FAC/FBM/LLB/dgfeller/scrnaseq/agabrie4/EPIC_ATAC/
+path_to_data_folder=/work/FAC/FBM/LLB/dgfeller/scrnaseq/agabrie4/EPIC_ATAC/results/elife_revisions/data/
+ref_output_path=/work/FAC/FBM/LLB/dgfeller/scrnaseq/agabrie4/EPIC_ATAC/results/elife_revisions/build_reference_res/noSubtypes/ 
+my_cibersortx_token=/work/FAC/FBM/LLB/dgfeller/scrnaseq/agabrie4/EPIC_ATAC/scripts/main_analyses/token
+cibersortx_container=/work/FAC/FBM/LLB/dgfeller/scrnaseq/agabrie4/external_softwares/fractions_latest.sif
+cibersortx_username=aurelie.gabriel@unil.ch
+
+nextflow run ${git_repo_path}scripts/reference_profiles_scripts/build_references.nf \
+-c ${git_repo_path}scripts/reference_profiles_scripts/nextflow.config -profile singularity \
+--counts_path ${path_to_data_folder}markers_identification_input_files/raw_counts.txt \
+--metadata_path ${path_to_data_folder}markers_identification_input_files/metadata.txt \
+--output_folder ${ref_output_path} \
+--cibersortx_token ${my_cibersortx_token} \
+--CIBERSORTx_singularity ${cibersortx_container} \
+--CIBERSORTx_username ${cibersortx_username} \
+--cross_validation_files ${path_to_data_folder}markers_identification_input_files/samples/Ref/subsample \
+--encode_count_file ${path_to_data_folder}markers_identification_input_files/encode_counts.txt \
+--encode_metadata_file ${path_to_data_folder}markers_identification_input_files/encode_metadata.txt \
+--TCGA_path ${path_to_data_folder}markers_identification_input_files/TCGA_data.rds \
+--HA_path ${path_to_data_folder}markers_identification_input_files/Human_Atlas_peaks.txt \
+-bg -resume
+
+# Considering Tcell subtypes
+ref_output_path=/work/FAC/FBM/LLB/dgfeller/scrnaseq/agabrie4/EPIC_ATAC/results/elife_revisions/build_reference_res/withSubtypes/  
+
+nextflow run ${git_repo_path}scripts/reference_profiles_scripts/build_references.nf \
+-c ${git_repo_path}scripts/reference_profiles_scripts/nextflow.config -profile singularity \
+--counts_path ${path_to_data_folder}markers_identification_input_files/raw_counts.txt \
+--metadata_path ${path_to_data_folder}markers_identification_input_files/metadata.txt \
+--output_folder ${ref_output_path} \
+--cibersortx_token ${my_cibersortx_token} \
+--CIBERSORTx_singularity ${cibersortx_container} \
+--CIBERSORTx_username ${cibersortx_username} \
+--cross_validation_files ${path_to_data_folder}markers_identification_input_files/samples/Ref/subsample \
+--encode_count_file ${path_to_data_folder}markers_identification_input_files/encode_counts.txt \
+--encode_metadata_file ${path_to_data_folder}markers_identification_input_files/encode_metadata.txt \
+--TCGA_path ${path_to_data_folder}markers_identification_input_files/TCGA_data.rds \
+--HA_path ${path_to_data_folder}markers_identification_input_files/Human_Atlas_peaks.txt \
+--major_groups FALSE \
+-bg -resume
+
+```
+
+## Annotate the markers
+
+We extracted raw counts from the data from UCAR et al.
+```{bash extract_counts_ENCODE, eval = FALSE, echo = TRUE}
+manuscript_version=manuscript_30-09-2023
+script_path=/work/FAC/FBM/LLB/dgfeller/scrnaseq/agabrie4/EPIC_ATAC/ATAC_deconvolution_scripts/
+project_path=/work/FAC/FBM/LLB/dgfeller/scrnaseq/agabrie4/EPIC_ATAC/
+
+# Using all samples
+saf_folder=${project_path}results/${manuscript_version}/reference_profiles/counts/
+raw_counts_output_folder=/data/FAC/FBM/LLB/dgfeller/default_sensitive/agabrie4/EGA_data/${manuscript_version}/EGA/
+
+# Using a restricted selection of samples, i.e., only the non stimulated samples
+saf_folder=${project_path}results/${manuscript_version}/reference_profiles/counts_noStim/
+raw_counts_output_folder=/data/FAC/FBM/LLB/dgfeller/default_sensitive/agabrie4/EGA_data/${manuscript_version}/EGA_noStim/
+
+mkdir ${raw_counts_output_folder}
+cd ${raw_counts_output_folder}
+sbatch -o counts_extraction.out -e counts_extraction.err ${script_path}/bulk_preprocessing_scripts/urblauna_counts_extraction.sh ${saf_folder}
+```
+
+
+
+## Evaluating EPIC-ATAC on the different bulk and pseudobulk data and reproducing the manuscript figures
+
+```{bash main_analyses, eval = FALSE, echo = TRUE}
+
+mamba activate /work/FAC/FBM/LLB/dgfeller/scrnaseq/agabrie4/nextflow_env
+project_path=/work/FAC/FBM/LLB/dgfeller/scrnaseq/agabrie4/EPIC_ATAC/
+
+path_to_data_folder=${project_path}/results/elife_revisions/data/
+my_cibersortx_token=${project_path}/scripts/main_analyses/token 
+cibersortx_container=/work/FAC/FBM/LLB/dgfeller/scrnaseq/agabrie4/external_softwares/fractions_latest.sif 
+cibersortx_username=aurelie.gabriel@unil.ch 
+output_path=${project_path}/results/elife_revisions/main_analyses/ 
+
+# Without considering the T cell subtypes
+nextflow run ${git_repo_path}scripts/main_analyses/main_analyses.nf \
+-c ${git_repo_path}scripts/main_analyses/nextflow.config \
+-profile singularity \
+--cibersortx_token ${my_cibersortx_token} \
+--CIBERSORTx_singularity ${cibersortx_container} \
+--CIBERSORTx_username ${cibersortx_username} \
+--data_path ${path_to_data_folder} --withSubtypes FALSE \
+--output_path ${output_path} -bg -resume
+
+# Considering the T cell subtypes
+nextflow run ${git_repo_path}scripts/main_analyses/main_analyses.nf \
+-c ${git_repo_path}scripts/main_analyses/nextflow.config \
+-profile singularity \
+--cibersortx_token ${my_cibersortx_token} \
+--CIBERSORTx_singularity ${cibersortx_container} \
+--CIBERSORTx_username ${cibersortx_username} \
+--data_path ${path_to_data_folder} --withSubtypes TRUE \
+--output_path ${output_path} -bg -resume
+
+```
+
+## Preprocessing of the single-cell data to build pseudobulks
+
+Scripts related to pseudobulks generation are available in the `pseudobulk_scripts` folder.
+To preprocess the single-cell ATAC-Seq (scATAC-Seq) data and build the corresponding pseudobulk, we used the following command line which runs the nextflow script
+`pseudobulk_scripts/nf_scripts/scATAC_preprocessing.nf`.
+A docker container containing the required packages was used (see `pseudobulk_scripts/nf_scripts/nextflow.config`).
+
+```{bash generate-pseudobulks, eval = FALSE, echo = TRUE}
+script_path=/work/FAC/FBM/LLB/dgfeller/scrnaseq/agabrie4/EPIC_ATAC/ATAC_deconvolution_scripts/
+input_path=/work/FAC/FBM/LLB/dgfeller/scrnaseq/agabrie4/EPIC_ATAC/data/processed/pseudobulks/
+cd ${input_path}
+
+nextflow run ${script_path}pseudobulk_scripts/nf_scripts/scATAC_preprocessing.nf \
+-c ${script_path}pseudobulk_scripts/nf_scripts/nextflow.config -profile singularity \
+--input_path ${input_path} --archR_output_path ${input_path} --pseudobulk_output_path ${input_path} -bg -resume
+```
+
+Outputs are saved in the following path: `/work/FAC/FBM/LLB/dgfeller/scrnaseq/agabrie4/EPIC_ATAC/data/processed/pseudobulks/`
+Pseudobulk matrices and associated ground truth cell composition are saved in `XX_grouped_peakCalling_peaks_Mat.rds` where `XX` correspond to the name of the dataset.
+ArchR preprocessing files are saved in `BCC_Satpathy/`, `Gynecological_cancers/`,  `PBMC_Granja/`, `PBMC_Satpathy/`, `PBMC_multiome/` respectively for each scATAC-Seq dataset used.
+
+
+
